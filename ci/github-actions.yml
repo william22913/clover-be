@@ -1,0 +1,55 @@
+# GitHub Actions pipeline for this service.
+# Move to .github/workflows/ci.yml to activate; it lives here because the
+# session credential used for this branch lacks the `workflow` scope GitHub
+# requires to create a workflow file.
+
+name: ci
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+
+jobs:
+  test:
+    name: build, test and image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: vet
+        run: go vet ./...
+
+      - name: build
+        run: go build ./...
+
+      - name: install junit report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
+      - name: test
+        run: go test -v ./... 2>&1 | tee /tmp/test.log | go-junit-report -set-exit-code > report.xml
+
+      - name: publish test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clover-be-test-report
+          path: report.xml
+          if-no-files-found: warn
+
+      - name: docker image
+        run: docker build -t clover-be:${{ github.sha }} .

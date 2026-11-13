@@ -1,0 +1,23 @@
+# Test footprint for an ephemeral verification host: one replica, small limits,
+# durability off. Never deployed.
+services:
+  db:
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - max_connections=20
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+    mem_limit: 512m
+
+  app:
+    mem_limit: 384m
+    environment:
+      GOMEMLIMIT: 256MiB
+      GOGC: "50"

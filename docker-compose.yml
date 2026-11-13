@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: clover
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      CLOVER_MIGRATOR_PASSWORD: ${CLOVER_MIGRATOR_PASSWORD:?set CLOVER_MIGRATOR_PASSWORD in .env}
+      CLOVER_APP_PASSWORD: ${CLOVER_APP_PASSWORD:?set CLOVER_APP_PASSWORD in .env}
+    volumes:
+      - clover-db:/var/lib/postgresql/data
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
+      - ./scripts/init-db.sql:/opt/clover/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d clover"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      # sslmode=disable is safe only because db publishes no port and is
+      # reachable only on the compose network; a deployed environment uses
+      # verify-full (main refuses anything weaker when APP_ENV=production).
+      DATABASE_URL: postgres://clover_app:${CLOVER_APP_PASSWORD:?set CLOVER_APP_PASSWORD in .env}@db:5432/clover?sslmode=disable
+      MIGRATE_DATABASE_URL: postgres://clover_migrator:${CLOVER_MIGRATOR_PASSWORD:?set CLOVER_MIGRATOR_PASSWORD in .env}@db:5432/clover?sslmode=disable
+      LISTEN_ADDR: ":8080"
+      METRICS_ADDR: ":9101"
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8080}
+    ports:
+      - "8080:8080"
+    # The metrics listener is deliberately not published.
+    restart: unless-stopped
+
+volumes:
+  clover-db:
