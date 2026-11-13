@@ -1,0 +1,86 @@
+{
+  "reference": "Look reference: a Dribbble screen recording the manager supplied (8.0 s, 1600 x 1200, 60 fps) showing one static landing screen inside a 3D laptop mockup — warm amber light over near-black, a full-viewport hero, a spread top nav with a white gooey capsule, a huge white condensed all-caps headline filled to about 92 percent of the column, frosted rails over the photograph, a white stat card, three glass feature cards, and an orchestrated entrance in the 180-600 ms range. The recording itself is a microbiology site, not a film product; the manager asked for its look and mood, and the screens here are Clover's v1 feature (public catalogue, combined sign-in / quick sign-up, player), derived from that language. Type: Inter Tight 700 display and Inter 400/500/600 interface, self-hosted. Imagery is Unsplash placeholder key art and must be replaced with Clover's licensed posters and stills.",
+  "hide": [],
+  "screens": [
+    {
+      "id": "catalogue",
+      "page": "Catalogue",
+      "state": "signed out; full-viewport hero and rail, all 13 films below"
+    },
+    {
+      "id": "catalogue-signed-in",
+      "page": "Catalogue",
+      "state": "signed in; account initial and sign out in the header"
+    },
+    {
+      "id": "auth-signin",
+      "page": "Sign in / Create account",
+      "state": "from a film; combined sign-in tab, selected film on the still"
+    },
+    {
+      "id": "auth-signin-error",
+      "page": "Sign in / Create account",
+      "state": "generic credentials error, email kept"
+    },
+    {
+      "id": "auth-signup",
+      "page": "Sign in / Create account",
+      "state": "from a film; create account tab, password rules shown"
+    },
+    {
+      "id": "auth-signup-invalid",
+      "page": "Sign in / Create account",
+      "state": "invalid email and too-short password, input kept"
+    },
+    {
+      "id": "auth-signup-duplicate",
+      "page": "Sign in / Create account",
+      "state": "email already in use, with a way to sign in instead"
+    },
+    {
+      "id": "auth-expired",
+      "page": "Sign in / Create account",
+      "state": "session-ended notice"
+    },
+    {
+      "id": "player",
+      "page": "Player",
+      "state": "opened, paused on the first frame, controls visible"
+    },
+    {
+      "id": "player-playing",
+      "page": "Player",
+      "state": "playing, controls visible"
+    },
+    {
+      "id": "player-idle",
+      "page": "Player",
+      "state": "playing, chrome auto-hidden"
+    },
+    {
+      "id": "player-error",
+      "page": "Player",
+      "state": "video failed to load, retry offered"
+    },
+    {
+      "id": "player-missing",
+      "page": "Player",
+      "state": "film not in the catalogue, way back offered"
+    }
+  ],
+  "routes": {
+    "catalogue": "#/",
+    "catalogue-signed-in": "#/?u=1",
+    "auth-signin": "#/auth?next=halcyon",
+    "auth-signin-error": "#/auth?next=halcyon&err=bad&email=neve%40example.com",
+    "auth-signup": "#/auth?next=halcyon&mode=signup",
+    "auth-signup-invalid": "#/auth?next=halcyon&mode=signup&err=invalid&email=neve",
+    "auth-signup-duplicate": "#/auth?next=halcyon&mode=signup&err=dup&email=neve%40example.com",
+    "auth-expired": "#/auth?next=halcyon&err=expired",
+    "player": "#/play/halcyon?demo=1",
+    "player-playing": "#/play/halcyon?demo=1&playing=1",
+    "player-idle": "#/play/halcyon?demo=1&idle=1",
+    "player-error": "#/play/halcyon?demo=1&error=video",
+    "player-missing": "#/play/unlisted"
+  }
+}
