@@ -98,6 +98,17 @@ substitution is stated rather than implied.
   one-minute window and by the single-key behaviour above; left as is.
 - **`noIndex` answers a plain-text 404** for a directory request — nothing is
   behind it; left as is.
+- **`originAllowed` falls back to the request host when `PUBLIC_ORIGIN` is
+  unset** (a later automated pass flagged this as spoofable). It is the
+  behaviour `architecture.md` states — "`PUBLIC_ORIGIN` (or the request host
+  when unset)" — and it now exists only in development: `config.Load` refuses
+  to start in production without `PUBLIC_ORIGIN`, and the value is shape-checked
+  (`TestLoad_PublicOrigin`). The fallback is also not reachable as an attack: a
+  browser sets `Host` from the URL it is visiting, so a cross-site page cannot
+  make the victim's request carry a `Host` that matches attacker-chosen text
+  while `Origin` names the attacker, and the `SameSite=Lax` cookie is absent
+  from cross-site POSTs anyway. Failing closed there would break the documented
+  development behaviour without closing a real path.
 
 ### Test-report publishing
 
