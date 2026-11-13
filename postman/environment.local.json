@@ -1,0 +1,10 @@
+{
+  "id": "clover-local",
+  "name": "clover — local compose stack",
+  "values": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "default", "enabled": true },
+    { "key": "metricsBaseUrl", "value": "http://127.0.0.1:9101", "type": "default", "enabled": true },
+    { "key": "slug", "value": "halcyon", "type": "default", "enabled": true }
+  ],
+  "_postman_variable_scope": "environment"
+}

@@ -1,0 +1,5 @@
+coverage.out
+clover
+*.test
+.DS_Store
+.env

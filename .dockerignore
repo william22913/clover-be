@@ -1,0 +1,14 @@
+.git
+.gitignore
+.github
+docs
+postman
+api
+Dockerfile
+docker-compose*.yml
+README.md
+CLAUDE.md
+*.md
+.env
+.env.*
+!.env.example
