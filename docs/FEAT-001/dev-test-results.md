@@ -2,12 +2,12 @@
 
 Spec version: 1
 Testcase version: 1
-Part PRs: PART-1=pending
-Part PRs: PART-2=pending
-Part PRs: PART-3=pending
-Part PRs: PART-4=pending
-Part PRs: PART-5=pending
-Part PRs: PART-6=pending
+Part PRs: PART-1=https://github.com/william22913/clover-be/pull/1
+Part PRs: PART-2=https://github.com/william22913/clover-be/pull/1
+Part PRs: PART-3=https://github.com/william22913/clover-be/pull/1
+Part PRs: PART-4=https://github.com/william22913/clover-be/pull/1
+Part PRs: PART-5=https://github.com/william22913/clover-be/pull/1
+Part PRs: PART-6=https://github.com/william22913/clover-be/pull/1
 
 ## What was run
 
