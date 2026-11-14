@@ -2,10 +2,10 @@
 
 Spec version: 1
 Testcase version: 1
-Part PRs: PART-1=pending
-Part PRs: PART-2=pending
-Part PRs: PART-3=pending
-Part PRs: PART-4=pending
+Part PRs: PART-1=https://github.com/william22913/clover-be/pull/3
+Part PRs: PART-2=https://github.com/william22913/clover-be/pull/3
+Part PRs: PART-3=https://github.com/william22913/clover-be/pull/3
+Part PRs: PART-4=https://github.com/william22913/clover-be/pull/3
 
 Repository: `clover-be` (Go API). Branch: `feat/feat-001-dev-movie-streaming-v1`,
 created from the `feat/feat-001` handoff branch. The browser app is the separate
