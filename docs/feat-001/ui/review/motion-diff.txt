@@ -1,0 +1,6 @@
+# motion diff: 2 reference animation(s), 2 in the mock recording
+DIFFERS  reference #1 (animation, 0.0s, 1500 ms) vs mock #1 (0.0s, 700 ms):
+           WEAK     duration 700 ms in the mock, 1500 ms in the reference
+           WEAK     easing: halfway through the change the mock is at 0.69, the reference at 0.46 (reference is closest to linear: cubic-bezier(0,0,1,1))
+OK       reference #2 (animation, 2.8s, 500 ms) vs mock #2 (2.3s, 600 ms)
+RESULT: 1 of 2 reference animation(s) missing or different. Fix them, record again, rerun.

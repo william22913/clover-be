@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clover — Movie Streaming</title>
+    <meta
+      name="description"
+      content="Clover: browse a public film catalogue and sign in to watch. Design mock for feat-001."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23060504'/%3E%3Cpath d='M12 19.5v-6.2M12 13.3c-1.4-1.6-5.6-2.9-5.6-6.1A3.4 3.4 0 0 1 12 4.4a3.4 3.4 0 0 1 5.6 2.8c0 3.2-4.2 4.5-5.6 6.1Z' fill='none' stroke='%23e8a24b' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <link rel="preload" href="assets/fonts/InstrumentSans-Regular.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="assets/fonts/InstrumentSans-Bold.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-head" id="site-head">
+      <div class="head-inner">
+        <a class="brand" href="#catalogue" aria-label="Clover — go to the catalogue">
+          <svg class="brand-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 20.5v-7.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            <path
+              d="M12 13.3c-1.4-1.6-5.6-2.9-5.6-6.1A3.4 3.4 0 0 1 12 4.4a3.4 3.4 0 0 1 5.6 2.8c0 3.2-4.2 4.5-5.6 6.1Z"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span class="brand-name">Clover</span>
+        </a>
+
+        <nav class="head-nav" aria-label="Primary">
+          <a class="head-link" id="nav-catalogue" href="#catalogue" aria-current="page">Catalogue</a>
+          <a class="head-link" id="nav-back" href="#catalogue" hidden>Back to catalogue</a>
+        </nav>
+
+        <div class="head-auth">
+          <button class="btn btn-primary" id="auth-btn" type="button">
+            <span class="btn-label" id="auth-label">Sign in</span>
+            <svg class="btn-arrow" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M3.6 10.4 10.4 3.6M4.8 3.6h5.6v5.6" /></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <!-- ============ CATALOGUE ============ -->
+      <section class="page page-catalogue is-active" data-page="catalogue" aria-labelledby="catalogue-title">
+        <div class="hero">
+          <div class="hero-media anim-bg">
+            <img src="assets/img/hero.webp" alt="" />
+          </div>
+          <div class="hero-scrim"></div>
+
+          <div class="hero-inner">
+            <div class="hero-head">
+              <p class="eyebrow anim-nav">Clover / Film catalogue</p>
+              <h1 class="hero-title anim-head" id="catalogue-title">Pick a film. Press play.</h1>
+            </div>
+
+            <div class="hero-foot">
+              <div class="hero-copy">
+                <p class="lede anim-lede">
+                  Twenty films, streaming instantly. Browse the whole catalogue free — sign in only when
+                  you're ready to watch.
+                </p>
+
+                <div class="facts-card anim-facts on-paper" aria-label="Catalogue facts">
+                  <div class="fact">
+                    <span class="fact-value" id="fact-count">20</span>
+                    <span class="fact-label">films in the v1 catalogue</span>
+                  </div>
+                  <div class="fact">
+                    <span class="fact-value">Free</span>
+                    <span class="fact-label">browse without an account</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="hero-aside">
+                <button class="browse-chip anim-chip" type="button" data-scroll="catalogue-grid">
+                  Browse the catalogue
+                  <span class="chip-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
+                      <path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section class="catalogue" id="catalogue-grid" aria-labelledby="grid-title">
+          <div class="catalogue-head">
+            <h2 class="catalogue-title" id="grid-title">The catalogue</h2>
+            <span class="catalogue-count" id="catalogue-count">20 films</span>
+          </div>
+          <div class="film-grid" id="film-grid"></div>
+          <div id="catalogue-state"></div>
+        </section>
+
+        <footer class="site-foot">
+          <span>Clover</span>
+          <span>© 2026</span>
+        </footer>
+      </section>
+
+      <!-- ============ SIGN IN ============ -->
+      <section class="page page-signin" data-page="signin" hidden aria-labelledby="signin-title">
+        <div class="signin-bg anim-bg">
+          <img src="assets/img/hero.webp" alt="" />
+        </div>
+        <div class="signin-scrim"></div>
+
+        <div class="signin-main">
+          <div class="auth-panel anim-panel">
+            <div class="auth-head">
+              <p class="eyebrow">Sign in</p>
+              <h1 class="auth-title" id="signin-title">Sign in to watch</h1>
+              <p class="auth-sub" id="auth-sub">Use the account you were given.</p>
+            </div>
+
+            <div class="target-chip" id="target-chip" hidden>
+              <img class="target-thumb" id="target-thumb" src="assets/img/amber-drift.webp" alt="" />
+              <div class="target-copy">
+                <span class="target-eyebrow">Signing in to watch</span>
+                <span class="target-title" id="target-title">Amber Drift</span>
+              </div>
+            </div>
+
+            <form id="signin-form" novalidate>
+              <div class="field" id="field-id">
+                <label class="field-label" for="identifier">Username or email</label>
+                <input
+                  class="field-input"
+                  id="identifier"
+                  name="identifier"
+                  type="text"
+                  autocomplete="username"
+                  placeholder="yourname or you@example.com"
+                />
+                <p class="field-error" id="identifier-error">Enter your username or email.</p>
+              </div>
+
+              <div class="field" id="field-pass">
+                <label class="field-label" for="password">Password</label>
+                <input
+                  class="field-input"
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  placeholder="Your password"
+                />
+                <p class="field-error" id="password-error">Enter your password.</p>
+              </div>
+
+              <div class="form-alert" id="form-alert" role="alert">
+                Incorrect username/email or password.
+              </div>
+
+              <div class="auth-actions">
+                <button class="btn btn-primary btn-block" id="signin-submit" type="submit">
+                  <span class="btn-label" id="signin-label">Sign in</span>
+                  <svg class="btn-arrow" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M3.6 10.4 10.4 3.6M4.8 3.6h5.6v5.6" /></svg>
+                </button>
+              </div>
+            </form>
+
+            <div class="auth-cancel">
+              <button class="btn-quiet" id="cancel-signin" type="button">Cancel and keep browsing</button>
+            </div>
+            <p class="auth-note">No sign-up in v1. Accounts are created by Clover.</p>
+          </div>
+        </div>
+
+        <footer class="site-foot">
+          <span>Clover</span>
+          <span>© 2026</span>
+        </footer>
+      </section>
+
+      <!-- ============ PLAYER ============ -->
+      <section class="page page-player" data-page="player" hidden aria-labelledby="watch-title">
+        <div class="player-bg anim-bg">
+          <img id="player-bg-img" src="assets/img/amber-drift.webp" alt="" />
+        </div>
+        <div class="player-scrim"></div>
+
+        <div class="watch-main">
+          <div class="watch-meta anim-meta">
+            <p class="eyebrow">Now playing</p>
+            <h1 class="watch-title" id="watch-title">Amber Drift</h1>
+            <p class="watch-desc" id="watch-desc">
+              A slow descent into a golden world where every surface is alive.
+            </p>
+            <span class="watch-index" id="watch-index">Film 01 / 20</span>
+          </div>
+
+          <div class="stage anim-stage" id="stage">
+            <img class="stage-poster" id="stage-poster" src="assets/img/amber-drift.webp" alt="" />
+            <div class="stage-scrim"></div>
+
+            <button class="stage-play" id="stage-play" type="button" aria-label="Play">
+              <svg id="stage-play-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+
+            <div class="stage-controls" role="group" aria-label="Playback controls">
+              <button class="icon-btn" id="ctl-play" type="button" aria-label="Play">
+                <svg id="ctl-play-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </button>
+              <span class="timecode" id="time-current">0:00</span>
+              <input
+                class="timeline"
+                id="timeline"
+                type="range"
+                min="0"
+                max="1000"
+                value="0"
+                step="1"
+                aria-label="Seek"
+              />
+              <span class="timecode is-total" id="time-total">24:00</span>
+
+              <button class="ctl-quiet" id="ctl-mute" type="button" aria-label="Mute">
+                <svg id="mute-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
+                  <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </button>
+              <input
+                class="volume-range"
+                id="volume"
+                type="range"
+                min="0"
+                max="100"
+                value="70"
+                aria-label="Volume"
+              />
+              <button class="ctl-quiet" id="ctl-full" type="button" aria-label="Enter fullscreen">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="stage-state state-loading" role="status" aria-live="polite">
+              <div class="spinner"></div>
+              <span class="state-label">Loading film</span>
+            </div>
+
+            <div class="stage-state state-error">
+              <div class="state-card" role="alert">
+                <p class="eyebrow">Playback error</p>
+                <h2>This film can't play right now</h2>
+                <p>The video didn't load. Check your connection and try again.</p>
+                <button class="btn btn-primary" id="retry" type="button">
+                  <span class="btn-label">Try again</span>
+                  <svg class="btn-arrow" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M3.6 10.4 10.4 3.6M4.8 3.6h5.6v5.6" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="site-foot">
+          <span>Clover</span>
+          <span>© 2026</span>
+        </footer>
+      </section>
+
+      <!-- ============ FILM NOT FOUND ============ -->
+      <section class="page page-missing" data-page="not-found" hidden aria-labelledby="missing-title">
+        <div class="missing-bg anim-bg">
+          <img src="assets/img/hero.webp" alt="" />
+        </div>
+        <div class="missing-scrim"></div>
+
+        <div class="missing-main">
+          <div class="missing-inner">
+            <p class="eyebrow anim-nav">Error 404</p>
+            <h1 class="missing-title anim-head" id="missing-title">Film not found</h1>
+            <p class="missing-copy anim-lede">
+              This film isn't in the catalogue. The link may be old, or the film may have been removed.
+            </p>
+            <div class="missing-actions anim-chip">
+              <a class="btn btn-primary" href="#catalogue">Back to the catalogue</a>
+            </div>
+          </div>
+        </div>
+
+        <footer class="site-foot">
+          <span>Clover</span>
+          <span>© 2026</span>
+        </footer>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span id="toast-text"></span>
+    </div>
+
+    <details class="proto" id="proto">
+      <summary>Proto</summary>
+      <div class="proto-panel">
+        <a href="#catalogue">Catalogue — default</a>
+        <a href="#catalogue-signed-in">Catalogue — signed in</a>
+        <a href="#catalogue-loading">Catalogue — loading</a>
+        <a href="#catalogue-empty">Catalogue — empty</a>
+        <a href="#catalogue-poster-error">Catalogue — poster failed</a>
+        <a href="#signin">Sign in — for a film</a>
+        <a href="#signin-direct">Sign in — direct</a>
+        <a href="#signin-required">Sign in — fields required</a>
+        <a href="#signin-error">Sign in — wrong credentials</a>
+        <a href="#signin-loading">Sign in — submitting</a>
+        <a href="#player">Player — ready</a>
+        <a href="#player-loading">Player — loading</a>
+        <a href="#player-error">Player — video failed</a>
+        <a href="#not-found">Film not found</a>
+        <p class="proto-hint">
+          Demo sign-in: any username or email and any password. Type <b>wrongpass</b> as the password to see
+          the generic error.
+        </p>
+      </div>
+    </details>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "reference": "https://cdn.dribbble.com/userupload/44295925/file/9d7c0609260c04d650c6bc1d5d8528c4.mp4",
+  "hide": ["#proto"],
+  "screens": [
+    { "id": "catalogue", "page": "Catalogue `/`", "state": "default" },
+    { "id": "catalogue-signed-in", "page": "Catalogue `/`", "state": "signed in" },
+    { "id": "catalogue-loading", "page": "Catalogue `/`", "state": "loading" },
+    { "id": "catalogue-empty", "page": "Catalogue `/`", "state": "empty" },
+    { "id": "catalogue-poster-error", "page": "Catalogue `/`", "state": "poster failed" },
+    { "id": "signin", "page": "Sign in `/sign-in`", "state": "for a film" },
+    { "id": "signin-direct", "page": "Sign in `/sign-in`", "state": "direct" },
+    { "id": "signin-required", "page": "Sign in `/sign-in`", "state": "fields required" },
+    { "id": "signin-error", "page": "Sign in `/sign-in`", "state": "wrong credentials" },
+    { "id": "signin-loading", "page": "Sign in `/sign-in`", "state": "submitting" },
+    { "id": "player", "page": "Player `/watch/{movieId}`", "state": "ready" },
+    { "id": "player-loading", "page": "Player `/watch/{movieId}`", "state": "loading" },
+    { "id": "player-error", "page": "Player `/watch/{movieId}`", "state": "video failed" },
+    { "id": "not-found", "page": "Film not found `/watch/{movieId}`", "state": "missing film" }
+  ],
+  "anchors": [
+    { "screen": "catalogue", "frame": "frame-004.png" }
+  ]
+}
