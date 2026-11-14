@@ -290,11 +290,10 @@ func TestClientIP_TC047_TrustedProxyUsesTheForwardedClient(t *testing.T) {
 		t.Fatalf("clientIP with only trusted hops = %q", got)
 	}
 
-	// X-Real-IP when the proxy sets no chain.
-	req.Header.Del("X-Forwarded-For")
-	req.Header.Set("X-Real-IP", "203.0.113.8")
-	if got := s.clientIP(req); got != "203.0.113.8" {
-		t.Fatalf("clientIP with X-Real-IP = %q", got)
+	// A client-prepended entry is ignored; the proxy's appended hop wins.
+	req.Header.Set("X-Forwarded-For", "1.2.3.4, 203.0.113.6")
+	if got := s.clientIP(req); got != "203.0.113.6" {
+		t.Fatalf("clientIP believed a prepended entry: %q", got)
 	}
 }
 

@@ -26,15 +26,17 @@ it once before the API starts.
 
 The sign-in rate limit is per client address. When the API is reached through
 the frontend's nginx, every connection carries the proxy's address, so set
-`TRUSTED_PROXY_CIDRS` to the proxy's range (compose default:
-`172.16.0.0/12`) and let nginx forward the original client:
+`TRUSTED_PROXY_CIDRS` to the proxy's own address (a range that contains only
+proxies) and let nginx append the original client:
 
 ```nginx
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 ```
 
-Without one or the other, all visitors share a single bucket. A caller reaching
-the API directly cannot spoof the header: it is only read from a trusted peer.
+The rightmost entry is the one nginx observed, so a client cannot widen its own
+allowance by prepending a header. Without one or the other, all visitors share
+a single bucket. A caller reaching the API directly is never believed: the
+header is read only from a trusted peer.
 
 Development conventions, layout and the feature docs are indexed in
 [CLAUDE.md](CLAUDE.md).

@@ -169,7 +169,9 @@ func (s *statusWriter) Write(b []byte) (int, error) {
 
 // clientIP returns the address the sign-in bucket and the log line key on.
 // Forwarding headers are believed only when the immediate peer is a configured
-// trusted proxy, so a caller reaching the API directly cannot spoof them.
+// trusted proxy, so a caller reaching the API directly cannot spoof them. The
+// chain is read from the right: the proxy appends the address it observed, so
+// anything a client prepends is ignored.
 func (s *Server) clientIP(r *http.Request) string {
 	peer := remoteIP(r.RemoteAddr)
 	if !s.isTrustedProxy(peer) {
@@ -185,11 +187,6 @@ func (s *Server) clientIP(r *http.Request) string {
 			if s.isTrustedProxy(addr.String()) {
 				continue
 			}
-			return addr.String()
-		}
-	}
-	if real := strings.TrimSpace(r.Header.Get("X-Real-IP")); real != "" {
-		if addr, err := netip.ParseAddr(real); err == nil {
 			return addr.String()
 		}
 	}
