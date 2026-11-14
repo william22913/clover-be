@@ -746,7 +746,12 @@ func TestSeed_Reorder_ReappliesCleanly(t *testing.T) {
 	pool := database(t)
 	ctx := context.Background()
 
-	if _, err := pool.Exec(ctx, `UPDATE movies SET catalogue_order = 21 - catalogue_order`); err != nil {
+	// Park, then reverse: a plain one-step reverse would trip the same
+	// UNIQUE(catalogue_order) constraint the seed fix is about.
+	if _, err := pool.Exec(ctx, `UPDATE movies SET catalogue_order = catalogue_order + 10000`); err != nil {
+		t.Fatalf("park catalogue order: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE movies SET catalogue_order = 21 - (catalogue_order - 10000)`); err != nil {
 		t.Fatalf("reverse catalogue order: %v", err)
 	}
 	mediaDir, err := filepath.Abs(filepath.Join("..", "..", "media"))
