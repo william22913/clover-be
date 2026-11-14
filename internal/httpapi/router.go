@@ -5,6 +5,7 @@ package httpapi
 import (
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -27,25 +28,27 @@ type Deps struct {
 
 // Server holds the dependencies shared by the handlers.
 type Server struct {
-	pool         *pgxpool.Pool
-	cfg          config.Config
-	publicOrigin string
-	mediaDir     string
-	metrics      *observability.Metrics
-	logger       *slog.Logger
-	loginLimiter *rateLimiter
+	pool           *pgxpool.Pool
+	cfg            config.Config
+	publicOrigin   string
+	mediaDir       string
+	trustedProxies []netip.Prefix
+	metrics        *observability.Metrics
+	logger         *slog.Logger
+	loginLimiter   *rateLimiter
 }
 
 // New builds the API server.
 func New(deps Deps) *Server {
 	return &Server{
-		pool:         deps.Pool,
-		cfg:          deps.Config,
-		publicOrigin: deps.Config.PublicOrigin,
-		mediaDir:     deps.Config.MediaDir,
-		metrics:      deps.Metrics,
-		logger:       loggerOrDefault(deps.Logger),
-		loginLimiter: newRateLimiter(30, 30),
+		pool:           deps.Pool,
+		cfg:            deps.Config,
+		publicOrigin:   deps.Config.PublicOrigin,
+		mediaDir:       deps.Config.MediaDir,
+		trustedProxies: deps.Config.TrustedProxies,
+		metrics:        deps.Metrics,
+		logger:         loggerOrDefault(deps.Logger),
+		loginLimiter:   newRateLimiter(30, 30),
 	}
 }
 
@@ -87,12 +90,13 @@ func (s *Server) Handler() http.Handler {
 	// Any other path is the API's NOT_FOUND.
 	mux.Handle("/", http.HandlerFunc(s.notFound))
 
-	var h http.Handler = mux
+	// A panic is recovered innermost so the access log and the metrics
+	// middleware still see the 500 the recovery writes.
+	var h http.Handler = s.recoverPanic(mux)
 	h = s.metrics.Middleware(h)
 	h = s.withSession(h)
 	h = s.logRequests(h)
 	h = securityHeaders(h)
-	h = s.recoverPanic(h)
 	h = withRequestID(h)
 	return h
 }
@@ -101,7 +105,7 @@ func (s *Server) Handler() http.Handler {
 // exhausted.
 func (s *Server) limitLogin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ok, wait := s.loginLimiter.allow(clientIP(r))
+		ok, wait := s.loginLimiter.allow(s.clientIP(r))
 		if !ok {
 			w.Header().Set("Retry-After", retryAfterSeconds(wait))
 			s.writeError(w, r, http.StatusTooManyRequests, CodeRateLimited, nil)

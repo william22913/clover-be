@@ -121,6 +121,19 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		s.logger.Warn("expired session cleanup failed", "request_id", requestID(r), "error", err)
 	}
 
+	s.setSessionCookie(w, token)
+	s.metrics.ObserveLogin("ok")
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, userResponse{User: userPayload{
+		ID:       account.ID.String(),
+		Username: account.Username,
+	}})
+}
+
+// setSessionCookie issues the session cookie with the full lifetime. It is
+// called on sign-in and again whenever Resolve slides the server-side expiry,
+// so an active viewer is never signed out at the fixed 30-day mark.
+func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    token,
@@ -130,11 +143,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		Secure:   s.cfg.CookieSecure,
 		SameSite: http.SameSiteLaxMode,
 	})
-	s.metrics.ObserveLogin("ok")
-	writeJSON(w, http.StatusOK, userResponse{User: userPayload{
-		ID:       account.ID.String(),
-		Username: account.Username,
-	}})
 }
 
 // logout deletes the presented session and clears the cookie. It is
@@ -166,6 +174,8 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := identityFrom(r.Context())
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Vary", "Cookie")
 	writeJSON(w, http.StatusOK, userResponse{User: userPayload{
 		ID:       id.Account,
 		Username: id.Username,

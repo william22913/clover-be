@@ -422,6 +422,13 @@
                   "  const cookie = pm.response.headers.get('Set-Cookie') || '';",
                   "  pm.expect(cookie).to.include('clover_session=');",
                   "  pm.expect(cookie.toLowerCase()).to.include('httponly');",
+                  "});",
+                  "pm.test('session cookie carries the S7 attributes', () => {",
+                  "  const cookie = pm.response.headers.get('Set-Cookie') || '';",
+                  "  const lower = cookie.toLowerCase();",
+                  "  pm.expect(lower).to.include('samesite=lax');",
+                  "  pm.expect(lower).to.include('path=/');",
+                  "  pm.expect(lower).to.include('max-age=2592000');",
                   "});"
                 ]
               }

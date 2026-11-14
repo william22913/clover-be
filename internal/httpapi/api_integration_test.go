@@ -29,6 +29,7 @@ import (
 	"github.com/william22913/clover-be/internal/db"
 	"github.com/william22913/clover-be/internal/observability"
 	"github.com/william22913/clover-be/internal/seed"
+	"github.com/william22913/clover-be/internal/sessions"
 	"github.com/william22913/clover-be/migrations"
 )
 
@@ -736,6 +737,89 @@ func TestAuth_TC016_SessionExpiryRevokesAccess(t *testing.T) {
 			t.Fatalf("%s with an expired session: status %d", path, resp.StatusCode)
 		}
 		drain(resp)
+	}
+}
+
+// TestSeed_Reorder_ReappliesCleanly covers a re-run after the catalogue order
+// changed: UNIQUE(catalogue_order) must not block the swap halfway through.
+func TestSeed_Reorder_ReappliesCleanly(t *testing.T) {
+	pool := database(t)
+	ctx := context.Background()
+
+	if _, err := pool.Exec(ctx, `UPDATE movies SET catalogue_order = 21 - catalogue_order`); err != nil {
+		t.Fatalf("reverse catalogue order: %v", err)
+	}
+	mediaDir, err := filepath.Abs(filepath.Join("..", "..", "media"))
+	if err != nil {
+		t.Fatalf("media dir: %v", err)
+	}
+	if err := seed.Run(ctx, pool, mediaDir); err != nil {
+		t.Fatalf("re-seed after a reorder: %v", err)
+	}
+
+	rows, err := pool.Query(ctx, `SELECT catalogue_order, title FROM movies ORDER BY catalogue_order`)
+	if err != nil {
+		t.Fatalf("read catalogue: %v", err)
+	}
+	defer rows.Close()
+	position := 0
+	for rows.Next() {
+		var order int
+		var title string
+		if err := rows.Scan(&order, &title); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		position++
+		if order != position {
+			t.Fatalf("position %d holds order %d", position, order)
+		}
+		if title != seed.Films[position-1].Title {
+			t.Fatalf("position %d holds %q, want %q", position, title, seed.Films[position-1].Title)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
+	}
+	if position != len(seed.Films) {
+		t.Fatalf("re-seed left %d films, want %d", position, len(seed.Films))
+	}
+}
+
+// TestAuth_TC017_SlidingSessionReissuesTheCookie covers the browser half of the
+// sliding lifetime: when the server extends a day-old session, the response
+// carries a fresh cookie instead of letting the browser drop it at day 30.
+func TestAuth_TC017_SlidingSessionReissuesTheCookie(t *testing.T) {
+	api := newAPI(t)
+	api.mustLogin("alex", "Watch1234")
+
+	me := decode[userResponse](t, api.do(http.MethodGet, "/v1/auth/me", nil, nil))
+	// Idle for two days: past the 24h slide threshold, well inside the TTL.
+	if _, err := database(t).Exec(context.Background(),
+		`UPDATE sessions SET last_seen_at = now() - interval '2 days' WHERE account_id = $1`,
+		me.User.ID); err != nil {
+		t.Fatalf("age session: %v", err)
+	}
+
+	resp := api.do(http.MethodGet, "/v1/auth/me", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		drain(resp)
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	var refreshed *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "clover_session" {
+			refreshed = c
+		}
+	}
+	drain(resp)
+	if refreshed == nil {
+		t.Fatal("an extended session did not re-issue the cookie")
+	}
+	if refreshed.MaxAge != int(sessions.TTL/time.Second) {
+		t.Fatalf("refreshed Max-Age = %d", refreshed.MaxAge)
+	}
+	if !refreshed.HttpOnly || refreshed.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("refreshed cookie lost its attributes: %+v", refreshed)
 	}
 }
 

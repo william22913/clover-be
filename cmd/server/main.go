@@ -63,6 +63,7 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       2 * time.Minute,
 	}
 
 	errs := make(chan error, 2)
@@ -79,11 +80,14 @@ func main() {
 		}
 	}()
 
+	exitCode := 0
 	select {
 	case <-ctx.Done():
 		logger.Info("shutdown requested")
 	case err := <-errs:
 		logger.Error("listener stopped", "error", err)
+		// A listener that dies is a crash: the supervisor must see it.
+		exitCode = 1
 	}
 
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 15*time.Second)
@@ -91,4 +95,7 @@ func main() {
 	_ = api.Shutdown(shutdownCtx)
 	_ = internal.Shutdown(shutdownCtx)
 	logger.Info("server stopped")
+	if exitCode != 0 {
+		os.Exit(exitCode)
+	}
 }

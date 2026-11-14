@@ -4,7 +4,9 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/netip"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,6 +38,11 @@ func (s *Server) withSession(next http.Handler) http.Handler {
 		if err == nil && cookie.Value != "" {
 			sess, err := sessions.Resolve(r.Context(), s.pool, cookie.Value)
 			if err == nil {
+				if sess.Slid {
+					// The row's expiry was extended; the browser's copy
+					// must move with it.
+					s.setSessionCookie(w, cookie.Value)
+				}
 				r = r.WithContext(context.WithValue(r.Context(), identityKey, identity{
 					Role:     RoleMember,
 					Account:  sess.Account.String(),
@@ -98,7 +105,7 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 			"route", route,
 			"status", status,
 			"duration_ms", time.Since(start).Milliseconds(),
-			"remote_ip", clientIP(r),
+			"remote_ip", s.clientIP(r),
 		)
 	})
 }
@@ -160,12 +167,54 @@ func (s *statusWriter) Write(b []byte) (int, error) {
 	return s.ResponseWriter.Write(b)
 }
 
-func clientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
+// clientIP returns the address the sign-in bucket and the log line key on.
+// Forwarding headers are believed only when the immediate peer is a configured
+// trusted proxy, so a caller reaching the API directly cannot spoof them.
+func (s *Server) clientIP(r *http.Request) string {
+	peer := remoteIP(r.RemoteAddr)
+	if !s.isTrustedProxy(peer) {
+		return peer
+	}
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		for i := len(parts) - 1; i >= 0; i-- {
+			addr, err := netip.ParseAddr(strings.TrimSpace(parts[i]))
+			if err != nil {
+				continue
+			}
+			if s.isTrustedProxy(addr.String()) {
+				continue
+			}
+			return addr.String()
+		}
+	}
+	if real := strings.TrimSpace(r.Header.Get("X-Real-IP")); real != "" {
+		if addr, err := netip.ParseAddr(real); err == nil {
+			return addr.String()
+		}
+	}
+	return peer
+}
+
+func remoteIP(remoteAddr string) string {
+	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		return remoteAddr
 	}
 	return host
+}
+
+func (s *Server) isTrustedProxy(ip string) bool {
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return false
+	}
+	for _, prefix := range s.trustedProxies {
+		if prefix.Contains(addr) {
+			return true
+		}
+	}
+	return false
 }
 
 // rateLimiter is the per-IP token bucket on sign-in (S9). It is correct for

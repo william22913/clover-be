@@ -33,6 +33,9 @@ type Session struct {
 	ID       uuid.UUID
 	Account  uuid.UUID
 	Username string
+	// Slid reports that Resolve extended the server-side expiry, so the
+	// caller must also re-issue the cookie with a fresh lifetime.
+	Slid bool
 }
 
 // Create inserts a new session for accountID and returns the raw token. The
@@ -97,6 +100,7 @@ func Resolve(ctx context.Context, pool *pgxpool.Pool, token string) (Session, er
 		if err != nil {
 			return Session{}, fmt.Errorf("sessions: slide expiry: %w", err)
 		}
+		session.Slid = true
 	}
 	return session, nil
 }

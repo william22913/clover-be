@@ -158,8 +158,21 @@ func posterPath(slug string) string { return filepath.Join("posters", slug+".web
 func videoPath(slug string) string  { return filepath.Join("videos", slug+".mp4") }
 
 func seedFilms(ctx context.Context, pool *pgxpool.Pool) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("seed: begin film seed: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// catalogue_order is UNIQUE, so swapping two positions row by row would
+	// collide on the first one. Park the whole catalogue out of range first,
+	// in the same transaction, and the reorder always applies cleanly.
+	if _, err := tx.Exec(ctx, `UPDATE movies SET catalogue_order = catalogue_order + 10000`); err != nil {
+		return fmt.Errorf("seed: park catalogue order: %w", err)
+	}
+
 	for i, f := range Films {
-		_, err := pool.Exec(ctx,
+		_, err := tx.Exec(ctx,
 			`INSERT INTO movies (id, slug, title, description, poster_path, video_path, duration_seconds, catalogue_order)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			 ON CONFLICT (slug) DO UPDATE
@@ -176,6 +189,9 @@ func seedFilms(ctx context.Context, pool *pgxpool.Pool) error {
 		if err != nil {
 			return fmt.Errorf("seed: upsert film %q: %w", f.Slug, err)
 		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("seed: commit film seed: %w", err)
 	}
 	return nil
 }

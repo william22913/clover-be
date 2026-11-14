@@ -128,6 +128,13 @@ auth = [
             "  const cookie = pm.response.headers.get('Set-Cookie') || '';",
             "  pm.expect(cookie).to.include('clover_session=');",
             "  pm.expect(cookie.toLowerCase()).to.include('httponly');",
+            "});",
+            "pm.test('session cookie carries the S7 attributes', () => {",
+            "  const cookie = pm.response.headers.get('Set-Cookie') || '';",
+            "  const lower = cookie.toLowerCase();",
+            "  pm.expect(lower).to.include('samesite=lax');",
+            "  pm.expect(lower).to.include('path=/');",
+            "  pm.expect(lower).to.include('max-age=2592000');",
             "});"]),
     req("The account comes from the session", "GET", "/v1/auth/me", tests=status(200) + [
         "pm.test('own account', () => pm.expect(pm.response.json().user.username)",

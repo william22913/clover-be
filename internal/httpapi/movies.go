@@ -55,7 +55,6 @@ func (s *Server) listMovies(w http.ResponseWriter, r *http.Request) {
 		out = append(out, toPayload(m))
 	}
 	w.Header().Set("Cache-Control", "public, max-age=60")
-	w.Header().Add("Vary", "Accept-Language")
 	writeJSON(w, http.StatusOK, listMoviesResponse{Movies: out})
 }
 

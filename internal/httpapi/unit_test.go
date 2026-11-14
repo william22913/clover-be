@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -249,16 +250,84 @@ func TestHealthz_NeedsNoDatabase(t *testing.T) {
 	}
 }
 
-// TestClientIP covers the rate-limit key.
+// TestClientIP covers the rate-limit key: the peer address by default, and the
+// forwarded client only when that peer is a trusted proxy.
 func TestClientIP(t *testing.T) {
+	s := newTestServerObject(t, "")
+
 	req := httptest.NewRequest(http.MethodPost, "/v1/auth/login", nil)
 	req.RemoteAddr = "203.0.113.9:51721"
-	if got := clientIP(req); got != "203.0.113.9" {
+	if got := s.clientIP(req); got != "203.0.113.9" {
 		t.Fatalf("clientIP = %q", got)
 	}
 	req.RemoteAddr = "not-an-address"
-	if got := clientIP(req); got != "not-an-address" {
+	if got := s.clientIP(req); got != "not-an-address" {
 		t.Fatalf("clientIP fallback = %q", got)
+	}
+
+	// A direct caller cannot choose its own bucket by sending the header.
+	req.RemoteAddr = "198.51.100.7:40000"
+	req.Header.Set("X-Forwarded-For", "1.2.3.4")
+	if got := s.clientIP(req); got != "198.51.100.7" {
+		t.Fatalf("untrusted peer honoured a spoofed header: %q", got)
+	}
+}
+
+func TestClientIP_TC047_TrustedProxyUsesTheForwardedClient(t *testing.T) {
+	s := newTestServerObject(t, "")
+	s.trustedProxies = []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/login", nil)
+	req.RemoteAddr = "10.1.2.3:51721"
+	req.Header.Set("X-Forwarded-For", "203.0.113.5, 10.9.9.9")
+	if got := s.clientIP(req); got != "203.0.113.5" {
+		t.Fatalf("clientIP behind a trusted proxy = %q, want the rightmost untrusted hop", got)
+	}
+
+	// Only a trusted hop in the chain: the peer is the best answer we have.
+	req.Header.Set("X-Forwarded-For", "10.9.9.9")
+	if got := s.clientIP(req); got != "10.1.2.3" {
+		t.Fatalf("clientIP with only trusted hops = %q", got)
+	}
+
+	// X-Real-IP when the proxy sets no chain.
+	req.Header.Del("X-Forwarded-For")
+	req.Header.Set("X-Real-IP", "203.0.113.8")
+	if got := s.clientIP(req); got != "203.0.113.8" {
+		t.Fatalf("clientIP with X-Real-IP = %q", got)
+	}
+}
+
+// TestLoginLimit_TC047_IsPerClientBehindTheProxy reproduces the deployment
+// shape: the whole chain arrives from the proxy, and each forwarded client
+// keeps its own bucket instead of sharing one.
+func TestLoginLimit_TC047_IsPerClientBehindTheProxy(t *testing.T) {
+	s := newTestServerObject(t, "")
+	s.trustedProxies = []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}
+	s.loginLimiter = newRateLimiter(30, 30)
+	handler := s.limitLogin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	call := func(client string) int {
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/login", nil)
+		req.RemoteAddr = "10.0.0.2:50000"
+		req.Header.Set("X-Forwarded-For", client)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	for i := 0; i < 30; i++ {
+		if code := call("203.0.113.10"); code != http.StatusNoContent {
+			t.Fatalf("request %d = %d", i+1, code)
+		}
+	}
+	if code := call("203.0.113.10"); code != http.StatusTooManyRequests {
+		t.Fatalf("exhausted client = %d, want 429", code)
+	}
+	if code := call("203.0.113.11"); code != http.StatusNoContent {
+		t.Fatalf("a different client shared the exhausted bucket: %d", code)
 	}
 }
 

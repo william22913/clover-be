@@ -18,9 +18,23 @@ docker compose up --build
 ```
 
 The API listens on `:8080` (`/v1`, `/healthz`, `/readyz`); the metrics listener
-on `:9090` is internal and never published. `cmd/seed` applies the migrations
-and inserts the 20-film catalogue and the demo accounts; compose runs it once
-before the API starts.
+binds `127.0.0.1:9090` by default and is never published. `cmd/seed` applies the
+migrations and inserts the 20-film catalogue and the demo accounts; compose runs
+it once before the API starts.
+
+### Behind the frontend proxy
+
+The sign-in rate limit is per client address. When the API is reached through
+the frontend's nginx, every connection carries the proxy's address, so set
+`TRUSTED_PROXY_CIDRS` to the proxy's range (compose default:
+`172.16.0.0/12`) and let nginx forward the original client:
+
+```nginx
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+Without one or the other, all visitors share a single bucket. A caller reaching
+the API directly cannot spoof the header: it is only read from a trusted peer.
 
 Development conventions, layout and the feature docs are indexed in
 [CLAUDE.md](CLAUDE.md).

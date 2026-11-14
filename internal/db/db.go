@@ -4,6 +4,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"sort"
@@ -21,7 +22,20 @@ const migrationLockKey int64 = 710047001
 
 // Connect opens a pool and verifies the database answers.
 func Connect(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		// pgx quotes the connection string in parse errors, which would put
+		// the password in the log; report the failure without it.
+		return nil, errors.New("db: DATABASE_URL is not a valid connection string")
+	}
+	// Bound every statement so a stalled query cannot pin a pooled
+	// connection and its handler goroutine indefinitely.
+	if cfg.ConnConfig.RuntimeParams == nil {
+		cfg.ConnConfig.RuntimeParams = map[string]string{}
+	}
+	cfg.ConnConfig.RuntimeParams["statement_timeout"] = "15000"
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("db: create pool: %w", err)
 	}
