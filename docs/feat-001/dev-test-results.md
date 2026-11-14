@@ -240,6 +240,15 @@ prefixes without resolving symlinks; the migration runner records versions but
 not checksums; compose keeps its `8080:8080` publish for local checks, annotated
 as local-only; log rotation is left to the platform.
 
+Also accepted, from the re-gate: a response that slides the session carries
+`Set-Cookie` even on the public-cacheable catalogue and poster routes — shared
+caches exclude such responses by convention and the documented topology has no
+cache in front; `statement_timeout` applies to the migration connection too, so
+a migration body must finish inside 15 s (the current migrations are tiny); and
+the `full` compose profile ships `TRUSTED_PROXY_CIDRS` empty, so the operator
+must set it to the frontend proxy's address when running behind that profile,
+exactly as the README states.
+
 ## Known gaps and follow-ups
 
 1. **Frontend cases.** The 15 BLOCKED cases and the UI half of the 16 PARTIAL
