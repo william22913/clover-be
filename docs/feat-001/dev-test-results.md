@@ -29,7 +29,10 @@ created from the `feat/feat-001` handoff branch. The browser app is the separate
 | Layout detector | `detect_go_project_layout.py .` | General-Go project: no `nexcommon` dependency, therefore the stdlib layout in `architecture.md` applies (`cmd/`, `internal/`, `migrations/`) |
 | Layout verifier | `verify_generated_go_layout.py . <all .go files>` | `OK - no misplaced endpoint files, no leaked template artifacts` (28 files) |
 | Full Go suite incl. database cases | `verify_stack` runner, `tests` compose service (`go test ./...` against PostgreSQL 16 in the stack) | PASS — `tests exited (0)` |
-| Live API + transport | `verify_stack` runner with the Postman collection | PASS — stack healthy; **31 requests, 79 assertions, 0 failed**, including one `OPTIONS` per browser-called route and a `/metrics` scrape |
+| Live API + transport | `verify_stack` runner with the Postman collection | PASS — stack healthy; **31 requests, 80 assertions, 0 failed**, including one `OPTIONS` per browser-called route and a `/metrics` scrape |
+| Production-readiness gate | `golang-builder` gate on the full diff | First pass **BLOCK** (one finding: the sign-in limit collapsed to one bucket behind the reverse proxy); re-run after the fix |
+| Independent code review | `pr-review-toolkit:code-reviewer` on the full diff | Three findings: the same proxy bucket, the cookie not re-issued on slide, and one test assertion already corrected before the review |
+| Security review | automated security review of the client-address change | One hardening note: the forwarded hop must be the proxy-appended one — the implementation already reads the chain from the right, and `X-Real-IP` support was removed as it has no chain semantics |
 | SQL security | `nexcraft:sql-security-validator` on every SQL site | PASS — no blockers; all values bound with `$N`; the only raw execution is the embedded migration body from `//go:embed` |
 | Container build | `docker build` inside the verification runner | PASS — both binaries built, image ran as non-root |
 
@@ -74,6 +77,22 @@ every code the API can return.
    GitHub `workflow` scope, so pushing `.github/workflows/ci.yml` is rejected.
    The pipeline is delivered verbatim as `ci/github-actions-ci.yml` with the
    one-line install step in the README.
+9. **Client address behind the reverse proxy.** The documented topology puts
+   nginx in front of `/v1/`, so `RemoteAddr` alone would collapse every visitor
+   into one bucket and let one anonymous client deny sign-in for everyone. The
+   key now comes from the rightmost `X-Forwarded-For` hop, and only when the
+   immediate peer is listed in `TRUSTED_PROXY_CIDRS` (empty by default, so a
+   direct caller can never spoof it). The frontend must set
+   `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`; both facts
+   are in the README and `.env.example`.
+10. **The cookie slides with the session.** The row's expiry already slid, but
+    the browser's copy did not, so an active member would be signed out at the
+    fixed day 30. Every response that extends the row now re-issues the cookie
+    with the full lifetime (`TestAuth_TC017_SlidingSessionReissuesTheCookie`).
+11. **Seed reorders are transactional.** `catalogue_order` is unique, so
+    swapping two films row by row would fail on the first one. The seed parks
+    the whole catalogue out of range inside one transaction before rewriting
+    it (`TestSeed_Reorder_ReappliesCleanly`).
 
 ## Security design compliance
 
@@ -85,9 +104,9 @@ every code the API can return.
 | S4 | Argon2id m=19456, t=2, p=1, 16-byte salt, PHC | `internal/accounts/password.go` | `TestPassword_Argon2idPHC` |
 | S5 | No truncation; rune-count 8–128 | `ValidatePassword` | `TestValidatePassword_TC039_TC042_Length` |
 | S6 | Only the token's SHA-256 is stored | `sessions.HashToken` / `token_hash bytea` | `TestSessions_TokenIsOpaqueAndHashed`, schema CHECK on 32 bytes |
-| S7 | HttpOnly, SameSite=Lax, Path=/, Secure per config, 30-day Max-Age | `login` cookie | Postman `session cookie is HttpOnly` assertion |
+| S7 | HttpOnly, SameSite=Lax, Path=/, Secure per config, 30-day Max-Age | `setSessionCookie`; re-issued whenever the row slides | Newman cookie assertions (HttpOnly, SameSite, Path, Max-Age), `TestAuth_TC017_SlidingSessionReissuesTheCookie` |
 | S8 | Same-origin check on every POST | `sameOrigin` | `TestSameOrigin_S8`, `TestAuth_CSRF_CrossOriginIsRefused` |
-| S9 | 30/min per-IP bucket, no account lockout | `rateLimiter`, `limitLogin` | `TestRateLimiter_TC047_NoAccountLockout`, `TestAuth_TC047_NoAccountLockout`, `TestAuth_RateLimit` |
+| S9 | 30/min per-IP bucket, no account lockout | `rateLimiter`, `limitLogin`, client key from a trusted proxy hop | `TestRateLimiter_TC047_NoAccountLockout`, `TestClientIP_TC047_TrustedProxyUsesTheForwardedClient`, `TestLoginLimit_TC047_IsPerClientBehindTheProxy`, `TestAuth_TC047_NoAccountLockout`, `TestAuth_RateLimit` |
 | S10 | 4 KiB limit, unknown fields rejected, strict content type | `login` decoder | `TestAuth_MalformedRequests` (8 KiB → 413, unknown field → 400) |
 | S11 | Slug rule + row-sourced paths contained under the media root | `media.ValidSlug`, `media.Resolve` | `TestResolve_S11_RejectsPathsOutsideTheRoot`, `TestValidSlug_S11`, TC-058 |
 | S12 | FE-only (`next` validation) | — | Not in this repository |
@@ -194,6 +213,32 @@ Totals: 63 cases — 32 PASS, 16 PARTIAL, 15 BLOCKED. Every API-level acceptance
 case in the test design is executed; the PARTIAL cases are the end-to-end cases
 whose browser half runs in `clover-fe`, and the BLOCKED ones are pure player/UI
 behaviour that has no server side.
+
+## Hardening applied after review
+
+- The client address for the sign-in bucket and the log line comes from a
+  trusted proxy hop only (decision 9), with unit and handler tests for both the
+  trusted and the direct case.
+- The session cookie is re-issued whenever the row slides (decision 10).
+- `/v1/auth/me` and the sign-in response are `no-store`; `me` also varies on the
+  cookie, so no shared cache can serve one member's identity to another.
+- Every statement is bounded by `statement_timeout` (15 s), so a stalled query
+  cannot pin a pooled connection.
+- A malformed `DATABASE_URL` no longer puts the credentials in the log; the
+  parse error is reported without the connection string.
+- A listener that dies now exits non-zero, so a supervisor treats it as a crash;
+  the metrics listener also has an idle timeout.
+- Panic recovery sits inside the log and metrics middleware, so a recovered
+  panic still produces an access line and a `500` sample.
+- `.dockerignore` keeps `.env`, git history, docs, Postman and scripts out of
+  every image layer.
+- The catalogue response dropped its misleading `Vary: Accept-Language`.
+
+Accepted, not changed (recorded rather than silently ignored): the video route
+counts `ok` before the file is opened; media containment compares absolute
+prefixes without resolving symlinks; the migration runner records versions but
+not checksums; compose keeps its `8080:8080` publish for local checks, annotated
+as local-only; log rotation is left to the platform.
 
 ## Known gaps and follow-ups
 
