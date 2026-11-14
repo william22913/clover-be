@@ -1,0 +1,17 @@
+# Keep the build context to what the binaries need: sources, go.mod/go.sum and
+# the committed media. Secrets, history and docs never enter an image layer.
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+docs
+postman
+scripts
+ci
+*.log
+
+# Editor and OS noise.
+.idea
+.vscode
+.DS_Store

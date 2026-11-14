@@ -1,0 +1,21 @@
+CREATE TABLE movies (
+    id uuid PRIMARY KEY,
+    slug text NOT NULL,
+    title text NOT NULL,
+    description text NOT NULL,
+    poster_path text NOT NULL,
+    video_path text NOT NULL,
+    duration_seconds integer NOT NULL,
+    catalogue_order integer NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT movies_slug_key UNIQUE (slug),
+    CONSTRAINT movies_catalogue_order_key UNIQUE (catalogue_order),
+    CONSTRAINT movies_slug_format CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+    CONSTRAINT movies_catalogue_order_positive CHECK (catalogue_order >= 1),
+    CONSTRAINT movies_duration_range CHECK (duration_seconds BETWEEN 1 AND 1800),
+    CONSTRAINT movies_title_nonempty CHECK (btrim(title) <> ''),
+    CONSTRAINT movies_description_nonempty CHECK (btrim(description) <> ''),
+    CONSTRAINT movies_poster_path_nonempty CHECK (btrim(poster_path) <> ''),
+    CONSTRAINT movies_video_path_nonempty CHECK (btrim(video_path) <> '')
+);

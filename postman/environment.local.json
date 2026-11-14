@@ -1,0 +1,11 @@
+{
+  "name": "Clover local",
+  "values": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "enabled": true },
+    { "key": "metricsUrl", "value": "http://localhost:9090", "enabled": true },
+    { "key": "publicOrigin", "value": "http://localhost:3000", "enabled": true },
+    { "key": "username", "value": "alex", "enabled": true },
+    { "key": "password", "value": "Watch1234", "enabled": true }
+  ],
+  "_postman_variable_scope": "environment"
+}

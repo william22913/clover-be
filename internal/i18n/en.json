@@ -1,0 +1,13 @@
+{
+  "AUTH_INVALID_CREDENTIALS": "Incorrect username/email or password.",
+  "VALIDATION_ERROR": "Please check the highlighted fields and try again.",
+  "UNAUTHENTICATED": "Please sign in to continue.",
+  "CSRF_REJECTED": "Something went wrong. Please try again.",
+  "MOVIE_NOT_FOUND": "That film is not available.",
+  "NOT_FOUND": "Not found.",
+  "METHOD_NOT_ALLOWED": "Method not allowed.",
+  "RATE_LIMITED": "Too many attempts. Please wait a moment and try again.",
+  "INTERNAL_ERROR": "Something went wrong. Please try again.",
+  "FIELD_IDENTIFIER_REQUIRED": "Enter your username or email.",
+  "FIELD_PASSWORD_REQUIRED": "Enter your password."
+}
