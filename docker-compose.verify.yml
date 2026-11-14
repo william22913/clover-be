@@ -1,0 +1,23 @@
+# Low-footprint override for the verification runner (about 1.2 GB total).
+# One replica, no frontend, tiny PostgreSQL settings, explicit memory ceilings.
+services:
+  postgres:
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - max_connections=20
+      - -c
+      - fsync=off
+      - -c
+      - full_page_writes=off
+    mem_limit: 320m
+
+  seed:
+    mem_limit: 160m
+
+  be:
+    mem_limit: 256m
+    environment:
+      GOMEMLIMIT: 192MiB

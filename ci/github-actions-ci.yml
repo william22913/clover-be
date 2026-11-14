@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: clover
+          POSTGRES_PASSWORD: clover
+          POSTGRES_DB: clover
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clover -d clover"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://clover:clover@localhost:5432/clover?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Format
+        run: test -z "$(gofmt -l .)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Install the JUnit reporter
+        run: |
+          go install github.com/joshdk/go-junit-report/v2@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Test (database-backed cases run against the service)
+        run: |
+          set -o pipefail
+          go test -race -v ./... | tee /tmp/test.log | go-junit-report > report.xml
+
+      - name: Upload the JUnit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-test-report
+          path: report.xml
+          if-no-files-found: error
+
+  build:
+    name: Build the image
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker build -t clover-be:ci .

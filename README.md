@@ -24,3 +24,17 @@ before the API starts.
 
 Development conventions, layout and the feature docs are indexed in
 [CLAUDE.md](CLAUDE.md).
+
+## Continuous integration
+
+`ci/github-actions-ci.yml` is the pipeline: format and vet checks, the full Go
+suite against a PostgreSQL service (the database-backed cases run there), the
+JUnit XML report published as the `go-test-report` artifact, and an image build.
+
+It is kept under `ci/` rather than `.github/workflows/` because this
+environment's git credential has no `workflow` scope, so a push that creates a
+workflow file is rejected by GitHub. Install it with:
+
+```sh
+mkdir -p .github/workflows && cp ci/github-actions-ci.yml .github/workflows/ci.yml
+```

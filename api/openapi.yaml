@@ -1,0 +1,401 @@
+openapi: 3.0.3
+info:
+  title: Clover API
+  version: 1.0.0
+  description: |
+    The Clover movie-streaming API. It serves the public catalogue, poster
+    images, session-gated video streaming and the sign-in session. It returns
+    JSON and media bytes only and never renders HTML; the browser app lives in
+    the separate `clover-fe` repository and reverse-proxies `/v1/`.
+
+    Every failure uses one envelope: `{"error":{"code","message","requestId"}}`
+    with an optional `fields` map for per-field validation messages. The
+    message is always English. `requestId` also appears in the `X-Request-Id`
+    response header and in the service log line.
+  contact:
+    name: Clover
+servers:
+  - url: http://localhost:8080
+    description: Local stack (compose publishes the API on 8080)
+tags:
+  - name: Catalogue
+    description: Public film catalogue and film detail.
+  - name: Auth
+    description: Sign-in, sign-out and the signed-in account.
+  - name: Media
+    description: Poster images and the session-gated video stream.
+  - name: Observability
+    description: Liveness and readiness probes.
+paths:
+  /v1/movies:
+    get:
+      tags: [Catalogue]
+      summary: List the catalogue
+      description: |
+        Returns all 20 seeded films in editorial order. Public: no session is
+        required. The response is cacheable for 60 seconds.
+      operationId: listMovies
+      responses:
+        "200":
+          description: The full catalogue.
+          headers:
+            Cache-Control:
+              schema: {type: string, example: "public, max-age=60"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MovieList"}
+              example:
+                movies:
+                  - id: amber-drift
+                    title: Amber Drift
+                    description: A slow descent into a golden world where every surface is alive.
+                    posterUrl: /v1/media/movies/amber-drift/poster
+                    videoUrl: /v1/media/movies/amber-drift/video
+                    durationSeconds: 600
+                    position: 1
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/movies/{movieId}:
+    get:
+      tags: [Catalogue]
+      summary: Get one film
+      operationId: getMovie
+      parameters:
+        - $ref: "#/components/parameters/MovieId"
+      responses:
+        "200":
+          description: The film.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MovieDetail"}
+        "404":
+          $ref: "#/components/responses/MovieNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in with a username or email address
+      description: |
+        Accepts `application/json` only. On success sets the HttpOnly
+        `clover_session` cookie (30-day sliding lifetime, SameSite=Lax) and
+        returns the signed-in account. Every refused credential answers the same
+        401 `AUTH_INVALID_CREDENTIALS` body, whether the identifier is unknown
+        or the password is wrong. Keyed per client IP (30 attempts/minute); a
+        refused bucket answers 429 `RATE_LIMITED` with `Retry-After`.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/LoginRequest"}
+            example: {identifier: alex, password: Watch1234}
+      responses:
+        "200":
+          description: Signed in; the session cookie is set.
+          headers:
+            Set-Cookie:
+              schema: {type: string, example: "clover_session=...; Path=/; HttpOnly; SameSite=Lax"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/UserEnvelope"}
+        "400":
+          description: The body is not JSON, has an unknown field, or carries more than one value.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+        "401":
+          description: Refused credentials.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+        "403":
+          description: The request was sent by another origin (CSRF check).
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+        "413":
+          description: The body exceeds 4 KiB.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+        "422":
+          description: An empty identifier or password, with the per-field message.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+        "429":
+          description: Too many sign-in attempts from this client IP.
+          headers:
+            Retry-After:
+              schema: {type: integer, example: 42}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Sign out
+      description: |
+        Deletes the presented session and clears the cookie. Idempotent: a
+        request without a session still answers 204.
+      operationId: logout
+      responses:
+        "204":
+          description: Signed out.
+        "403":
+          description: The request was sent by another origin (CSRF check).
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Read the signed-in account
+      description: Returns the account the session belongs to. Never takes an account id from the request.
+      operationId: me
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The signed-in account.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/UserEnvelope"}
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/media/movies/{movieId}/poster:
+    get:
+      tags: [Media]
+      summary: Poster image
+      description: |
+        Streams the film's WebP poster. Public and cacheable for one day. The
+        file path comes from the film row, never from the request.
+      operationId: getPoster
+      parameters:
+        - $ref: "#/components/parameters/MovieId"
+      responses:
+        "200":
+          description: The poster image.
+          headers:
+            Cache-Control:
+              schema: {type: string, example: "public, max-age=86400"}
+          content:
+            image/webp:
+              schema: {type: string, format: binary}
+        "404":
+          $ref: "#/components/responses/MovieNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/media/movies/{movieId}/video:
+    get:
+      tags: [Media]
+      summary: Stream the film
+      description: |
+        Streams the film with full `Range`/`HEAD` support so playback starts
+        before the file is downloaded and seeking works. Requires a valid
+        session; without one the request is refused before any media byte is
+        written. Responses are `Cache-Control: private, no-store` with
+        `Vary: Cookie`.
+      operationId: getVideo
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/MovieId"
+        - name: Range
+          in: header
+          required: false
+          description: A byte range, e.g. `bytes=0-1023`.
+          schema: {type: string, example: "bytes=0-1023"}
+      responses:
+        "200":
+          description: The whole file (or a HEAD response with its length).
+          headers:
+            Accept-Ranges:
+              schema: {type: string, example: bytes}
+            Cache-Control:
+              schema: {type: string, example: "private, no-store"}
+            Vary:
+              schema: {type: string, example: Cookie}
+          content:
+            video/mp4:
+              schema: {type: string, format: binary}
+        "206":
+          description: The requested byte range.
+          content:
+            video/mp4:
+              schema: {type: string, format: binary}
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/MovieNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /healthz:
+    get:
+      tags: [Observability]
+      summary: Liveness
+      description: Answers without touching the database.
+      operationId: healthz
+      responses:
+        "200":
+          description: The process is alive.
+          content:
+            text/plain:
+              schema: {type: string, example: "ok\n"}
+  /readyz:
+    get:
+      tags: [Observability]
+      summary: Readiness
+      description: Pings the database with a 2-second timeout.
+      operationId: readyz
+      responses:
+        "200":
+          description: The database is reachable.
+          content:
+            text/plain:
+              schema: {type: string, example: "ready\n"}
+        "503":
+          description: The database is not reachable.
+          content:
+            text/plain:
+              schema: {type: string, example: "not ready\n"}
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: clover_session
+  parameters:
+    MovieId:
+      name: movieId
+      in: path
+      required: true
+      description: The film's public slug.
+      schema:
+        type: string
+        pattern: "^[a-z0-9-]{1,64}$"
+        example: amber-drift
+  responses:
+    MovieNotFound:
+      description: No film has that id.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+          example:
+            error:
+              code: MOVIE_NOT_FOUND
+              message: That film is not available.
+              requestId: 3f0c9a1b7d2e4c58
+    Unauthenticated:
+      description: No live session was presented.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: Please sign in to continue.
+              requestId: 3f0c9a1b7d2e4c58
+    InternalError:
+      description: The generic 500; no internal detail is returned.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Something went wrong. Please try again.
+              requestId: 3f0c9a1b7d2e4c58
+  schemas:
+    MovieList:
+      type: object
+      required: [movies]
+      properties:
+        movies:
+          type: array
+          items: {$ref: "#/components/schemas/Movie"}
+    MovieDetail:
+      type: object
+      required: [movie]
+      properties:
+        movie: {$ref: "#/components/schemas/Movie"}
+    Movie:
+      type: object
+      required: [id, title, description, posterUrl, videoUrl, durationSeconds, position]
+      properties:
+        id:
+          type: string
+          description: The public slug, used in the media routes.
+        title: {type: string}
+        description: {type: string}
+        posterUrl: {type: string, example: /v1/media/movies/amber-drift/poster}
+        videoUrl: {type: string, example: /v1/media/movies/amber-drift/video}
+        durationSeconds:
+          type: integer
+          minimum: 1
+          maximum: 1800
+        position:
+          type: integer
+          minimum: 1
+          description: 1-based editorial position in the catalogue.
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [identifier, password]
+      properties:
+        identifier:
+          type: string
+          description: A username (3–50 letters, digits, underscore) or an email address; trimmed and matched case-insensitively.
+          example: alex
+        password:
+          type: string
+          description: 8–128 characters with at least one letter and one digit; never trimmed.
+          example: Watch1234
+    UserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user: {$ref: "#/components/schemas/User"}
+    User:
+      type: object
+      required: [id, username]
+      properties:
+        id: {type: string, format: uuid}
+        username: {type: string}
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code:
+              type: string
+              enum:
+                - AUTH_INVALID_CREDENTIALS
+                - VALIDATION_ERROR
+                - UNAUTHENTICATED
+                - CSRF_REJECTED
+                - MOVIE_NOT_FOUND
+                - NOT_FOUND
+                - METHOD_NOT_ALLOWED
+                - RATE_LIMITED
+                - INTERNAL_ERROR
+            message:
+              type: string
+              description: English message for the code.
+            requestId:
+              type: string
+              description: Matches the X-Request-Id response header and the log line.
+            fields:
+              type: object
+              additionalProperties: {type: string}
+              description: Per-field messages for the 422 answer.
