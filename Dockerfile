@@ -8,6 +8,11 @@ COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed
 
+# Verification stage: runs the full Go suite (database-backed cases included)
+# against the compose network. Not part of the runtime image.
+FROM build AS test
+CMD ["go", "test", "-count=1", "./..."]
+
 # Runtime stage: the API binary, the seed binary and the committed media.
 FROM alpine:3.20
 

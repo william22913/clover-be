@@ -717,8 +717,15 @@ func TestAuth_TC016_SessionExpiryRevokesAccess(t *testing.T) {
 	api.mustLogin("alex", "Watch1234")
 
 	me := decode[userResponse](t, api.do(http.MethodGet, "/v1/auth/me", nil, nil))
+	// Move the whole session into the past: the row's CHECK keeps
+	// expires_at after created_at, so both are shifted.
 	if _, err := database(t).Exec(context.Background(),
-		`UPDATE sessions SET expires_at = now() - interval '1 minute' WHERE account_id = $1`, me.User.ID); err != nil {
+		`UPDATE sessions
+		    SET created_at = now() - interval '2 minutes',
+		        updated_at = now() - interval '2 minutes',
+		        last_seen_at = now() - interval '2 minutes',
+		        expires_at = now() - interval '1 minute'
+		  WHERE account_id = $1`, me.User.ID); err != nil {
 		t.Fatalf("expire session: %v", err)
 	}
 
@@ -738,8 +745,8 @@ func TestAuth_TC022_TwoDevices(t *testing.T) {
 	deviceOne := newAPI(t)
 	deviceTwo := newAPI(t)
 
-	deviceOne.mustLogin("mira", "Play2025x")
-	deviceTwo.mustLogin("mira", "Play2025x")
+	deviceOne.mustLogin("mira_k9", "Play2025x")
+	deviceTwo.mustLogin("mira_k9", "Play2025x")
 
 	for name, device := range map[string]*apiClient{"one": deviceOne, "two": deviceTwo} {
 		resp := device.do(http.MethodGet, "/v1/auth/me", nil, nil)
@@ -747,7 +754,7 @@ func TestAuth_TC022_TwoDevices(t *testing.T) {
 			drain(resp)
 			t.Fatalf("device %s: status %d", name, resp.StatusCode)
 		}
-		if body := decode[userResponse](t, resp); body.User.Username != "mira" {
+		if body := decode[userResponse](t, resp); body.User.Username != "mira_k9" {
 			t.Fatalf("device %s: user = %+v", name, body.User)
 		}
 	}

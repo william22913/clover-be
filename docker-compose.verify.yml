@@ -1,23 +1,49 @@
 # Low-footprint override for the verification runner (about 1.2 GB total).
 # One replica, no frontend, tiny PostgreSQL settings, explicit memory ceilings.
+# The `tests` service runs the Go suite (database-backed cases included) on the
+# compose network before the API is started; `newman` then drives the API.
 services:
   postgres:
     command:
       - postgres
       - -c
-      - shared_buffers=32MB
+      - shared_buffers=24MB
       - -c
       - max_connections=20
       - -c
       - fsync=off
       - -c
       - full_page_writes=off
-    mem_limit: 320m
+    mem_limit: 256m
 
   seed:
-    mem_limit: 160m
+    mem_limit: 96m
+
+  tests:
+    build:
+      context: .
+      target: test
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-clover}:${POSTGRES_PASSWORD:-clover}@postgres:5432/${POSTGRES_DB:-clover}?sslmode=disable
+      TEST_DATABASE_URL: postgres://${POSTGRES_USER:-clover}:${POSTGRES_PASSWORD:-clover}@postgres:5432/${POSTGRES_DB:-clover}?sslmode=disable
+      MEDIA_DIR: /src/media
+      GOMEMLIMIT: 256MiB
+    mem_limit: 512m
 
   be:
-    mem_limit: 256m
+    mem_limit: 192m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+      tests:
+        condition: service_completed_successfully
     environment:
-      GOMEMLIMIT: 192MiB
+      GOMEMLIMIT: 160MiB
