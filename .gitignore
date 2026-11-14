@@ -1,0 +1,5 @@
+# Local environment, build output and editor scratch files.
+.env
+/bin/
+/tmp/
+*.log
