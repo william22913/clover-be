@@ -139,39 +139,43 @@ log line; no error message contains SQL, a path or a stack trace.
 
 ## Test case results
 
-Legend: **PASS** = executed and observed; **PARTIAL** = the server half of the
-case is executed and passed, the browser half belongs to `clover-fe`;
-**BLOCKED** = the case can only be executed in a browser against the frontend.
+Legend: **PASS** = executed and observed. The former **PARTIAL** (server half
+only) and **BLOCKED** (browser-only) states are closed: the browser halves were
+executed in the `clover-fe` suite on 2026-11-14 at commit
+`701555fde7e2ab09ff63a105f334a85ef0dd2291`
+(`clover-fe/docs/feat-001/fe-test-results.md`), so every row below carries both
+halves' evidence. Evidence paths starting `e2e/` or `src/` are from that
+record; the others are this repository's tests and probes.
 
 | Case ID | Result | Evidence | Notes |
 |---|---|---|---|
-| TC-001 | BLOCKED | — | Catalogue rendering is the frontend; data verified by TC-003 |
-| TC-002 | BLOCKED | — | Page layout/count copy is the frontend |
+| TC-001 | PASS | `e2e/journey.spec.js:7` — 20 cards from the live catalogue, count "20 films", first poster decoded; `src/routes/CataloguePage.test.jsx:62` | Catalogue rendering is the frontend; data verified by TC-003 |
+| TC-002 | PASS | `e2e/journey.spec.js:23` — browse chip reaches the grid, 20 cards on one page, no filter, sort or paging control | Page layout/count copy is the frontend |
 | TC-003 | PASS | `TestCatalogue_TC003_AnonymousReadsTwentyFilms`; Newman "List the catalogue" | 20 films, all fields, editorial order, public |
-| TC-004 | BLOCKED | — | Empty-state copy and rendering are the frontend; the API shape is `{"movies":[]}` |
-| TC-005 | BLOCKED | — | Poster-failure placeholder is the frontend |
-| TC-006 | PARTIAL | `TestI18n_TC006_EveryMessageIsEnglish`; catalogue and error copy asserted English | All API copy is English with no locale switch; UI copy lives in `clover-fe` |
+| TC-004 | PASS | `e2e/states.spec.js:7` — "No films available", counts and browse chip removed; `src/routes/CataloguePage.test.jsx:83` | Empty-state copy and rendering are the frontend; the API shape is `{"movies":[]}` |
+| TC-005 | PASS | `e2e/states.spec.js:31` — 20 poster fallbacks, titles and sign-in labels intact; `src/routes/CataloguePage.test.jsx:72` | Poster-failure placeholder is the frontend |
+| TC-006 | PASS | `TestI18n_TC006_EveryMessageIsEnglish`; catalogue and error copy asserted English; `src/locales/en.json` is the only locale and there is no language switch; the journeys assert the rendered English copy on the catalogue, sign-in, player, film-not-found and the error/empty states | All API copy is English with no locale switch; UI copy lives in `clover-fe` |
 | TC-007 | PASS | `TestCatalogue_TC007_AcceptLanguageIsIgnored`; Newman "English whatever Accept-Language says" | `fr-FR`, absent, `xx-XX` → identical English bodies |
-| TC-008 | BLOCKED | — | Sign-in gate and target chip are UI |
-| TC-009 | PARTIAL | Newman "Sign in with the username"; `TestAuth_IdentifierMatrix` | Username sign-in succeeds; landing on the player is UI |
-| TC-010 | PARTIAL | `TestAuth_IdentifierMatrix` (email row); Newman uppercase email | Email sign-in succeeds; landing is UI |
-| TC-011 | PARTIAL | Newman "The account comes from the session" | Signed-in state is maintained; direct-open player is UI |
-| TC-012 | BLOCKED | — | Cancel control is UI |
-| TC-013 | BLOCKED | — | Header sign-in flow is UI |
-| TC-014 | PARTIAL | `TestSeed_TC014_NoRegistrationRoute` | No registration route exists (404/405); UI inspection is blocked |
-| TC-015 | PARTIAL | Newman "Signed out cannot fetch video" | Video refuses without a session; the player-address flow is UI |
-| TC-016 | PARTIAL | `TestAuth_TC016_SessionExpiryRevokesAccess` | Server-expired session → 401 on `/me` and video; browser redirect is UI |
-| TC-017 | PARTIAL | `TestMe_TC017_TC021_SessionLifecycle`; Newman | The cookie alone keeps the session across requests; page reload is UI |
-| TC-018 | BLOCKED | — | Needs a persistent browser profile (browser restart) |
-| TC-019 | PARTIAL | `TestMe_TC017_TC021_SessionLifecycle`; Newman sign-out then 401s | Sign-out revokes; catalogue/confirmation copy is UI |
+| TC-008 | PASS | `e2e/journey.spec.js:52` — a signed-out card opens `/sign-in?next=/watch/amber-drift` naming the film; `:62` repeats it with a second film after Cancel | Sign-in gate and target chip are UI |
+| TC-009 | PASS | Newman "Sign in with the username"; `TestAuth_IdentifierMatrix`; `e2e/journey.spec.js:52` — `alex` signs in and lands on `/watch/amber-drift` with "Film 01 / 20" | Username sign-in succeeds; landing on the player is UI |
+| TC-010 | PASS | `TestAuth_IdentifierMatrix` (email row); Newman uppercase email; `e2e/journey.spec.js:69` — `mira.k@example.com` signs in and lands on the carried film | Email sign-in succeeds; landing is UI |
+| TC-011 | PASS | Newman "The account comes from the session"; `e2e/journey.spec.js:40` — a signed-in card goes straight to the player | Signed-in state is maintained; direct-open player is UI |
+| TC-012 | PASS | `e2e/journey.spec.js:143` — Cancel returns to `/` and no sign-in request is made | Cancel control is UI |
+| TC-013 | PASS | `e2e/journey.spec.js:89` — direct sign-in returns to the catalogue with the toast and "Sign out" | Header sign-in flow is UI |
+| TC-014 | PASS | `TestSeed_TC014_NoRegistrationRoute`; `e2e/journey.spec.js:149` — no sign-up link on the catalogue or sign-in; `/sign-up` and `/register` render the catalogue | No registration route exists (404/405); the UI exposes no sign-up entry |
+| TC-015 | PASS | Newman "Signed out cannot fetch video"; `e2e/journey.spec.js:448` — `/watch/motel-sun` while signed out → sign-in → back to Motel Sun | Video refuses without a session; the player-address flow is UI |
+| TC-016 | PASS | `TestAuth_TC016_SessionExpiryRevokesAccess`; `e2e/journey.spec.js:431` — an expired session returns to `/sign-in?next=/watch/amber-drift` | Server-expired session → 401 on `/me` and video; browser redirect is UI |
+| TC-017 | PASS | `TestMe_TC017_TC021_SessionLifecycle`; Newman; `e2e/journey.spec.js:366` — a reload keeps the player | The cookie alone keeps the session across requests; page reload is UI |
+| TC-018 | PASS | `e2e/journey.spec.js:376` — a fresh browser context carrying only the saved cookies opens the player | Needs a persistent browser profile (browser restart) |
+| TC-019 | PASS | `TestMe_TC017_TC021_SessionLifecycle`; Newman sign-out then 401s; `e2e/journey.spec.js:390` — sign out → catalogue with "Signed out.", then the player route asks for sign-in | Sign-out revokes; catalogue/confirmation copy is UI |
 | TC-020 | PASS | `TestVideo_TC020_ReplayedCookieAfterLogout` | Captured cookie replayed after sign-out: 401 for GET and Range, no bytes |
 | TC-021 | PASS | `TestMe_TC017_TC021_SessionLifecycle` | Revoked session refused; a fresh session works |
 | TC-022 | PASS | `TestAuth_TC022_TwoDevices` | Two live sessions for one account; signing out of one leaves the other |
 | TC-023 | PASS | Newman "Wrong password is one generic refusal"; `TestAuth_TC023_TC024_OneGenericRefusal` | Same generic refusal, then the correct password succeeds |
 | TC-024 | PASS | `TestAuth_TC023_TC024_OneGenericRefusal`; Newman | Unknown username and unknown email give the identical body |
-| TC-025 | PARTIAL | `TestAuth_TC025_TC026_FieldMessages`; Newman "Empty identifier names the field" | 422 with `identifier` message; the pre-request UI block is frontend |
-| TC-026 | PARTIAL | `TestAuth_TC025_TC026_FieldMessages` | 422 with `password` message; UI block is frontend |
-| TC-027 | PARTIAL | `TestAuth_TC025_TC026_FieldMessages` (spaces row) | Whitespace-only identifier → 422; no browser request is sent by the UI |
+| TC-025 | PASS | `TestAuth_TC025_TC026_FieldMessages`; Newman "Empty identifier names the field"; `e2e/journey.spec.js:101` — inline error and focus, no request; `src/routes/SignInPage.test.jsx:50` | 422 with `identifier` message; the pre-request UI block is frontend |
+| TC-026 | PASS | `TestAuth_TC025_TC026_FieldMessages`; `e2e/journey.spec.js:101` — the password error is inline and no request is sent (same test) | 422 with `password` message; UI block is frontend |
+| TC-027 | PASS | `TestAuth_TC025_TC026_FieldMessages` (spaces row); `src/routes/SignInPage.test.jsx:121` — a whitespace-only identifier is treated as empty, no request | Whitespace-only identifier → 422; no browser request is sent by the UI |
 | TC-028 | PASS | `TestAuth_IdentifierMatrix` | `"  alex  "` signs in |
 | TC-029 | PASS | `TestAuth_IdentifierMatrix` | 3-character username accepted |
 | TC-030 | PASS | `TestAuth_IdentifierMatrix` | 2-character username refused generically |
@@ -193,26 +197,25 @@ case is executed and passed, the browser half belongs to `clover-fe`;
 | TC-046 | PASS | `TestAuth_PasswordMatrix`, `TestPassword_TC046_TrailingSpaceIsSignificant` | trailing space is significant both ways |
 | TC-047 | PASS | `TestAuth_TC047_NoAccountLockout`, `TestRateLimiter_TC047_NoAccountLockout` | 10 failures, then the correct password at once; no lock |
 | TC-048 | PASS | `TestSeed_TC048_IdentifiersAreUnique` | 7 accounts, unique usernames and emails case-insensitively |
-| TC-049 | BLOCKED | — | Player layout and title placement are UI |
-| TC-050 | BLOCKED | — | Play control is UI |
-| TC-051 | BLOCKED | — | Pause control is UI |
-| TC-052 | PARTIAL | `TestVideo_TC052_TC055_TC056_RangeStreaming`; Newman "Seek deep into the 16-minute film" | Server honours a byte-range seek (206, exact slice) on the 16-minute film; dragging the timeline is UI |
-| TC-053 | BLOCKED | — | Volume/mute controls are UI |
-| TC-054 | BLOCKED | — | Fullscreen is UI |
-| TC-055 | PARTIAL | `TestMedia_ServeVideo_TC052_TC055_RangeAndHead`; Newman Range request | `Accept-Ranges: bytes` and partial responses let playback start before download; the throttled-browser observation is UI |
-| TC-056 | PARTIAL | `TestVideo_TC052_TC055_TC056_RangeStreaming` | All 20 films stream their own bytes with the right content type; playing each is UI |
-| TC-057 | PARTIAL | `TestMovie_TC058_UnknownFilmIsCleanNotFound` | 404 `MOVIE_NOT_FOUND` with a clean body; the "Film not found" page is UI |
+| TC-049 | PASS | `e2e/journey.spec.js:226` — the player's title is the film's title; `src/routes/PlayerPage.jsx:57-58`; `:326` checks all 20 titles | Player layout and title placement are UI |
+| TC-050 | PASS | `e2e/journey.spec.js:226` — play starts playback (`paused === false`, aria-label "Pause") | Play control is UI |
+| TC-051 | PASS | `e2e/journey.spec.js:226` — the second click pauses and restores aria-label "Play" | Pause control is UI |
+| TC-052 | PASS | `TestVideo_TC052_TC055_TC056_RangeStreaming`; Newman "Seek deep into the 16-minute film"; `e2e/journey.spec.js:226` — setting the timeline to 500 moves `currentTime` past 250 | Server honours a byte-range seek (206, exact slice) on the 16-minute film; dragging the timeline is UI |
+| TC-053 | PASS | `e2e/journey.spec.js:226` — volume 30 %, mute, unmute restores 0.3 | Volume/mute controls are UI |
+| TC-054 | PASS | `e2e/journey.spec.js:350` — fullscreen enters, the label flips to "Exit fullscreen", and exits | Fullscreen is UI |
+| TC-055 | PASS | `TestMedia_ServeVideo_TC052_TC055_RangeAndHead`; Newman Range request; `e2e/journey.spec.js:277` — at 20 kB/s the `playing` event fires while `buffered.end` is below the film's duration | `Accept-Ranges: bytes` and partial responses let playback start before download; the throttled-browser observation is UI |
+| TC-056 | PASS | `TestVideo_TC052_TC055_TC056_RangeStreaming`; `e2e/journey.spec.js:326` — all 20 films opened from the API list, title matched, played past 0.4 s | All 20 films stream their own bytes with the right content type; playing each is UI |
+| TC-057 | PASS | `TestMovie_TC058_UnknownFilmIsCleanNotFound`; `e2e/journey.spec.js:401` — "Film not found" and "Back to the catalogue" returns to `/` | 404 `MOVIE_NOT_FOUND` with a clean body; the "Film not found" page is UI |
 | TC-058 | PASS | `TestMovie_TC058_UnknownFilmIsCleanNotFound`; Newman | 404, machine-readable, no stack or database detail |
-| TC-059 | BLOCKED | — | Player error state and retry are UI |
-| TC-060 | BLOCKED | — | Retry behaviour is UI |
+| TC-059 | PASS | `e2e/journey.spec.js:408` — the stage reaches `is-error` with "This film can't play right now" and "Try again" | Player error state and retry are UI |
+| TC-060 | PASS | `e2e/journey.spec.js:408` — "Try again" clears the error and playback starts without leaving the page | Retry behaviour is UI |
 | TC-061 | PASS | `TestVideo_TC061_NoSessionIsRefused`; Newman (plain and ranged) | 401 and no media bytes; catalogue stays public |
 | TC-062 | PASS | `TestCatalogue_TC062_TC063_SeedData`, `TestVideo_TC052_TC055_TC056_RangeStreaming` | All 20 films have a title, description, working poster and working video |
 | TC-063 | PASS | `TestCatalogue_TC062_TC063_SeedData`, `TestSeed_TC063_DurationCeiling` | Longest seeded film is 960 s; 1800 s is accepted by the schema, 1801 s is rejected at both seed validation and the database CHECK |
 
-Totals: 63 cases — 32 PASS, 16 PARTIAL, 15 BLOCKED. Every API-level acceptance
-case in the test design is executed; the PARTIAL cases are the end-to-end cases
-whose browser half runs in `clover-fe`, and the BLOCKED ones are pure player/UI
-behaviour that has no server side.
+Totals: 63 cases — 63 PASS. Every API-level acceptance case in the test design
+is executed in this repository; the end-to-end and pure player/UI cases are
+closed by their browser half in the `clover-fe` suite (2026-11-14).
 
 ## Hardening applied after review
 
